@@ -1,61 +1,7 @@
-
-// import React from "react";
-// import { View, Text, Image, Button, Alert } from "react-native";
-// import { collection, addDoc, getDocs } from "firebase/firestore";
-// import { db } from "../firebaseConfig";
-
-// const BookDetailsScreen = ({ route }) => {
-//   const { book } = route.params;
-//   const borrowedBooksRef = collection(db, "borrowedBooks");
-
-//   const borrowBook = async () => {
-//     try {
-//       // ✅ Fetch current borrowed books
-//       const querySnapshot = await getDocs(borrowedBooksRef);
-//       const borrowedBooks = querySnapshot.docs.map((doc) => doc.data());
-
-//       // ✅ Check if the book is already borrowed
-//       const isAlreadyBorrowed = borrowedBooks.some((b) => b?.title === book.title);
-//       if (isAlreadyBorrowed) {
-//         Alert.alert("Already Borrowed", "You have already borrowed this book.");
-//         return;
-//       }
-
-//       // ✅ Limit borrowing to 3 books
-//       if (borrowedBooks.length >= 3) {
-//         Alert.alert("Limit Reached", "You cannot borrow more than 3 books at a time.");
-//         return;
-//       }
-
-//       // ✅ Borrow the book
-//       await addDoc(borrowedBooksRef, book);
-//       Alert.alert("Success", "Book borrowed successfully!");
-//     } catch (error) {
-//       console.error("Error borrowing book:", error);
-//       Alert.alert("Error", "Failed to borrow the book.");
-//     }
-//   };
-
-//   return (
-//     <View style={{ padding: 20 }}>
-//       <Image source={{ uri: book.coverImage }} style={{ width: 200, height: 300 }} />
-//       <Text style={{ fontSize: 18, fontWeight: "bold" }}>{book.title}</Text>
-//       <Text>{book.author}</Text>
-//       <Text>{book.description}</Text>
-//       <Button title="Borrow Book" onPress={borrowBook} />
-//     </View>
-//   );
-// };
-
-// export default BookDetailsScreen;
-
-
 import React, { useEffect, useState } from "react";
-import { View, Text, Image, Button, Alert, ActivityIndicator, ScrollView, StyleSheet } from "react-native";
+import { View,Text,Image, Alert,ActivityIndicator,ScrollView,StyleSheet,TouchableOpacity,KeyboardAvoidingView,Platform,} from "react-native";
 import { collection, addDoc, getDocs, doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebaseConfig";
-
-const GOOGLE_BOOKS_API_URL = "https://www.googleapis.com/books/v1/volumes?q=intitle:";
 
 const BookDetailsScreen = ({ route }) => {
   const { book } = route.params;
@@ -72,13 +18,10 @@ const BookDetailsScreen = ({ route }) => {
   useEffect(() => {
     const fetchBookDetails = async () => {
       try {
-        // Fetch book details from Firebase
         const docSnap = await getDoc(bookDocRef);
         let firebaseData = docSnap.exists() ? docSnap.data() : {};
-  
         setDescription(firebaseData.description || "No description available.");
-  
-        // Keep the existing preview functionality
+
         if (!book.preview) {
           setPreview("Fetching preview...");
           const response = await fetch(GOOGLE_BOOKS_API_URL + encodeURIComponent(book.title));
@@ -89,25 +32,23 @@ const BookDetailsScreen = ({ route }) => {
         } else {
           setPreview(book.preview);
         }
-  
-        // Fetch book rating if not in Firebase
+
         if (!firebaseData.averageRating) {
           const response = await fetch(
             `${GOOGLE_BOOKS_API_URL}${encodeURIComponent(book.title)}&key=AIzaSyD9ne-B6O2T_Hc2Gv38f0SwS_nXY-qBGeo`
           );
           const json = await response.json();
-  
+
           if (json.items && json.items.length > 0) {
             const bookData = json.items[0].volumeInfo;
             const bookRating = bookData.averageRating || "No rating available";
             const ratingsCount = bookData.ratingsCount || 0;
-  
-            // Update Firebase with the new rating
+
             await updateDoc(bookDocRef, {
               averageRating: bookRating,
               ratingsCount: ratingsCount,
             });
-  
+
             setRating(bookRating);
             setRatingsCount(ratingsCount);
           }
@@ -121,10 +62,9 @@ const BookDetailsScreen = ({ route }) => {
         setLoading(false);
       }
     };
-  
+
     fetchBookDetails();
   }, [book.id, book.title, book.preview]);
-
 
   const borrowBook = async () => {
     try {
@@ -150,65 +90,109 @@ const BookDetailsScreen = ({ route }) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Image source={{ uri: book.coverImage }} style={styles.bookImage} />
-      <Text style={styles.title}>{book.title}</Text>
-      <Text style={styles.author}>{book.author}</Text>
-      
-      <Text style={styles.sectionTitle}>Description</Text>
-      <Text style={styles.description}>{description}</Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Image source={{ uri: book.coverImage }} style={styles.bookImage} />
 
-      <Text style={styles.sectionTitle}>Preview</Text>
-      {loading ? <ActivityIndicator size="small" color="#0000ff" /> : <Text style={styles.preview}>{preview}</Text>}
-      <Text style={styles.sectionTitle}>Rating</Text>
-<Text style={styles.rating}>
-  ⭐ {rating} ({ratingsCount} reviews)
-</Text>
+        <View style={styles.card}>
+          <Text style={styles.title}>{book.title}</Text>
+          <Text style={styles.author}>by {book.author}</Text>
 
+          <Text style={styles.sectionTitle}>Description</Text>
+          <Text style={styles.description}>{description}</Text>
 
-      <Button title="Borrow Book" onPress={borrowBook} color="#6200EE" />
-    </ScrollView>
+          <Text style={styles.sectionTitle}>Preview</Text>
+          {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.preview}>{preview}</Text>}
+
+          <Text style={styles.sectionTitle}>Rating</Text>
+          <Text style={styles.rating}>⭐ {rating} ({ratingsCount} reviews)</Text>
+          
+          <TouchableOpacity style={styles.borrowButton} onPress={borrowBook}>
+            <Text style={styles.borrowButtonText}>Borrow Book</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: "#1E1E1E",
+  },
+  scrollContainer: {
+    flexGrow: 1,
     padding: 20,
-    backgroundColor: "#fff",
+    alignItems: "center",
   },
   bookImage: {
-    width: "100%",
+    width: "50%",
     height: 300,
-    resizeMode: "contain",
+    resizeMode: "cover",
+    borderRadius: 12,
     marginBottom: 20,
   },
+  card: {
+    width: "100%",
+    backgroundColor: "#2A2A2A",
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "bold",
+    color: "#FFF",
     textAlign: "center",
   },
   author: {
     fontSize: 16,
-    color: "gray",
+    color: "#BBB",
     textAlign: "center",
     marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginTop: 20,
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#FF6B6B",
+    marginTop: 15,
+    marginBottom: 10,
   },
   description: {
     fontSize: 14,
-    lineHeight: 22,
+    color: "#DDD",
     textAlign: "justify",
+    lineHeight: 22,
   },
-  rating: { fontSize: 16, marginBottom: 10 },
   preview: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 15,
+    color: "#DDD",
     textAlign: "justify",
-    marginBottom: 20,
+    fontWeight: 500,
+    lineHeight: 22,
+  },
+  rating: {
+    fontSize: 16,
+    color: "#FFD700",
+  },
+  borrowButton: {
+    backgroundColor: "#FF6B6B",
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  borrowButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFF",
   },
 });
 

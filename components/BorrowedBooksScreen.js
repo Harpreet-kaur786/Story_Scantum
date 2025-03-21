@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { View, FlatList, Alert, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from "react-native";
+import { View, FlatList, Alert, Text, ActivityIndicator, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { collection, onSnapshot, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import BookItem from "../components/BookItem";
-
 const BorrowedBooksScreen = () => {
   const [borrowedBooks, setBorrowedBooks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,16 +26,22 @@ const BorrowedBooksScreen = () => {
         Alert.alert("Error", "Invalid book ID.");
         return;
       }
-      const bookDocRef = doc(db, "borrowedBooks", book.firestoreId);
-      await deleteDoc(bookDocRef);
-      setBorrowedBooks((prevBooks) => prevBooks.filter((b) => b.firestoreId !== book.firestoreId));
-      Alert.alert("Success", "Book returned successfully!");
+      await deleteDoc(doc(db, "borrowedBooks", book.firestoreId));
+      Alert.alert("Success", "Book returned successfully.");
     } catch (error) {
-      Alert.alert("Error", "Failed to return book. Please try again.");
+      Alert.alert("Error", "Failed to return the book.");
     }
   };
 
-  return (
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+
+   return (
     <View style={styles.container}>
       <Text style={styles.title}>Borrowed Books</Text>
 
@@ -46,64 +51,91 @@ const BorrowedBooksScreen = () => {
         <Text style={styles.noBooks}>No books borrowed.</Text>
       ) : (
         <FlatList
-          data={borrowedBooks}
-          keyExtractor={(item) => item.firestoreId}
-          renderItem={({ item }) => (
-            <View style={styles.bookItem}>
-              <BookItem book={item} />
+        data={borrowedBooks}
+        keyExtractor={(item) => item.firestoreId}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Image source={{ uri: item.coverImage }} style={styles.bookCover} />
+            <View style={styles.textContainer}>
+              <Text style={styles.bookTitle}>{item.title}</Text>
+              <Text style={styles.bookAuthor}>{item.author}</Text>
               <TouchableOpacity style={styles.returnButton} onPress={() => returnBook(item)}>
                 <Text style={styles.buttonText}>Return</Text>
               </TouchableOpacity>
             </View>
-          )}
-        />
+          </View>
+        )}
+      />
       )}
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#1E1E1E",
     padding: 20,
-    backgroundColor: "#F8F9FA",
-    marginTop: 50,
+    marginTop: 50
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    textAlign: "center",
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#1E1E1E",
+  },
+  card: {
+    flexDirection: "row",
+    backgroundColor: "#444",
+    padding: 20,
+    borderRadius: 10,
     marginBottom: 15,
-    color: "#333",
-  },
-  noBooks: {
-    textAlign: "center",
-    fontSize: 16,
-    color: "#555",
-    marginTop: 20,
-  },
-  bookItem: {
-    backgroundColor: "#FFFFFF",
-    padding: 15,
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: "#DDD",
-  },
-  returnButton: {
-    backgroundColor: "#DC3545",
-    paddingVertical: 10,
-    borderRadius: 5,
-    marginTop: 10,
     alignItems: "center",
   },
+  bookCover: {
+    width: 100,
+    height: 150,
+    borderRadius: 5,
+    marginRight: 15,
+  },
+  textContainer: {
+    flex: 1,
+  },
+  bookTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 5,
+  },
+  bookAuthor: {
+    fontSize: 16,
+    color: "#ddd",
+    marginBottom: 10,
+  },
+  returnButton: {
+    backgroundColor: "#E63946",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 5,
+    alignSelf: "flex-start",
+  },
   buttonText: {
-    color: "#FFF",
+    color: "#fff",
     fontWeight: "bold",
   },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  noBooks: {
+    fontSize: 16,
+    color: "#bbb",
+    textAlign: "center",
+    marginTop: 20,
+  },
+  
 });
 
 export default BorrowedBooksScreen;
